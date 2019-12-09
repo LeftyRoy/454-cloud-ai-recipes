@@ -30,6 +30,36 @@ def remove_name():
 	conn.commit()
 
 	print("Name deleted successfully from Users table")
+	
+	
+def get_recipes():
+    ingredients = []
 
+    n = int(input("Enter number of ingredients: "))
+    print("Enter those ingredients: \n")
+	
+    for i in range (0, n):
+        ingredient = str(input())
+        ingredients.append(ingredient)
+	
+    get_recipes_query = "SELECT Title FROM recipes WHERE"
+	
+    counter = 0
+    for i in ingredients:
+        if counter is len(ingredients) - 1:
+            get_recipes_query += " Ingredients LIKE '%" + str(i) + "%'"
+            print(get_recipes_query)
+            break
+        get_recipes_query += " Ingredients LIKE '%" + str(i) + "%' OR"
+        counter += 1
+
+    cur.execute(get_recipes_query)
+	
+    result = cur.fetchall()
+	
+    print(result)
+	
+	
+# get_recipes()
 # insert_name()
 # remove_name()
