@@ -8,14 +8,15 @@ class mainApp(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         self.titleFont = tkfont.Font(family="Helvetica", size="18", weight="bold")
         self.bodyFont = tkfont.Font(family="Helvetica", size="14", weight="bold")
-        self.loggedIn = -1
+        self.smallFont = tkfont.Font(family="Helvetica", size="12")
+        self.loggedIn = " "
         container = tk.Frame(self)
         container.pack(side="top", fill="both", expand=True)
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
         self.frames = dict() # dict of empty frames
 
-        for F in {loginFrame}:
+        for F in {loginFrame, questionaireFrame, menuFrame}:
             page_name = F.__name__
             frame = F(parent=container, controller=self)
             self.frames[page_name] = frame
@@ -25,19 +26,21 @@ class mainApp(tk.Tk):
 
     def show_frame(self, name):
         frame = self.frames[name]
-        if name=="mainMenu":
-            frame.updateBalances()
         if name=="loginFrame":
             self.loggedIn = -1
+        if name=="questionaireFrame":
+            frame.updateGreeting()
+        if name=="menuFrame":
+            frame.updateRecipes()
         frame.tkraise()
 
     def loginUser(self, user):
         self.loggedIn = GCloudSql.login(user)
         print("Logged In " + user)
         if(self.loggedIn[1] == None):
-            pass
+            self.show_frame("questionaireFrame")
         else:
-            pass
+            self.show_frame("menuFrame")
 
 
 class loginFrame(tk.Frame):
@@ -90,4 +93,54 @@ class questionaireFrame(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
-        self.selCanv = tk.Canvas(self)
+        canvas = tk.Canvas(self)
+        canvas.pack(anchor=tk.N, side=tk.TOP, pady=10)
+        canvasBody = tk.Canvas(self)
+        canvasBody.pack(anchor=tk.N, side=tk.TOP, pady=(5,0))
+        self.greetingLbl = tk.Label(canvas,text="Hello", font=controller.titleFont)
+        self.greetingLbl.pack(anchor=tk.N)
+        tk.Label(canvas,text="We see that you are new here!", font=controller.smallFont).pack(anchor=tk.N, side=tk.TOP)
+        tk.Label(canvasBody,text="Are you: ", font=controller.smallFont).pack(anchor=tk.N, side=tk.TOP)
+        self.isVegan = tk.IntVar()
+        tk.Checkbutton(canvasBody, text="Vegan", variable=self.isVegan, font=controller.smallFont).pack(anchor=tk.N, side=tk.TOP)
+        self.isVegetarian = tk.IntVar()
+        tk.Checkbutton(canvasBody, text="Vegetarian", variable=self.isVegetarian, font=controller.smallFont).pack(anchor=tk.N, side=tk.TOP)
+        tk.Label(canvasBody,text="Any Allergies? Check all the apply. ", font=controller.smallFont).pack(anchor=tk.N, side=tk.TOP, pady=(100,10))
+        self.cheese = tk.IntVar()
+        tk.Checkbutton(canvasBody, text="Cheese", variable=self.cheese, font=controller.smallFont).pack(anchor=tk.N, side=tk.TOP)
+        self.seafood = tk.IntVar()
+        tk.Checkbutton(canvasBody, text="Seafood", variable=self.seafood, font=controller.smallFont).pack(anchor=tk.N, side=tk.TOP)
+        self.alcohol = tk.IntVar()
+        tk.Checkbutton(canvasBody, text="Alcohol", variable=self.alcohol, font=controller.smallFont).pack(anchor=tk.N, side=tk.TOP)
+        tk.Button(canvasBody, text="Continue", font=self.controller.bodyFont, command = lambda: self.continuePressed()).pack(anchor=tk.N, side=tk.TOP, pady=(75,10))
+    
+    def updateGreeting(self):
+        self.greetingLbl.configure(text="Hello " + self.controller.loggedIn[0] + "!")
+    
+    def continuePressed(self):
+        luser = str(self.controller.loggedIn[0])
+        GCloudSql.addScore(luser, "vegan", 100*self.isVegan.get())
+        GCloudSql.addScore(luser, "vegetarian", 100*self.isVegetarian.get())
+
+        GCloudSql.addScore(luser, "cheese", -100*self.cheese.get())
+        GCloudSql.addScore(luser, "seafood", -100*self.seafood.get())
+        GCloudSql.addScore(luser, "fish", -100*self.seafood.get())
+        GCloudSql.addScore(luser, "shrimp", -100*self.seafood.get())
+        GCloudSql.addScore(luser, "alcohol", -100*self.alcohol.get())
+
+        self.controller.show_frame("menuFrame")
+
+class menuFrame(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        self.recipes = []
+    
+
+    def updateRecipes(self):
+        self.recipes = GCloudSql.get_recipes()
+        luser = str(self.controller.loggedIn[0])
+        self.recipes = GCloudSql.filterResults(luser ,self.recipes)
+
+        for k in self.recipes:
+            print(k[0])

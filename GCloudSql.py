@@ -1,4 +1,5 @@
 import pymysql
+import json
 
 conn = pymysql.connect(host='127.0.0.1', user='root', password='food', db='Recipes')
 cur = conn.cursor()
@@ -8,6 +9,34 @@ def login(user):
     cur.execute("SELECT * FROM Users WHERE Name=%s", user)
     userData=cur.fetchone()
     return userData
+
+def addScore(user, tag, amount):
+    cur.execute("SELECT Scores FROM Users WHERE Name=%s", user)
+    scores = cur.fetchone()
+    if(scores[0] == None):
+        scores = {}
+    else:
+        scores = str(scores[0])
+        scores = json.loads(scores)
+    
+    if tag in scores:
+        scores[tag] += amount
+    else:
+        scores[tag] = amount
+    scores = json.dumps(scores)
+    query = str("UPDATE Users SET Scores = '"+scores+"' WHERE Name='" + user + "'")
+    cur.execute(query)
+    conn.commit()
+
+def getScore(user, tag):
+    cur.execute("SELECT Scores FROM Users WHERE Name=%s", user)
+    scores = cur.fetchone()
+    scores = str(scores[0])
+    scores = json.loads(scores)
+    if tag in scores:
+        return scores[tag]
+    return 0
+
 
 def getAllUsers():
     cur.execute("SELECT Name FROM Users")
@@ -33,21 +62,16 @@ def remove_name(nm):
 	
 def get_recipes():
     ingredients = []
+    with open('fridge.txt') as f:
+        for ingredient in f:
+            ingredients.append(ingredient)
 
-    n = int(input("Enter number of ingredients: "))
-    print("Enter those ingredients: \n")
-	
-    for i in range (0, n):
-        ingredient = str(input())
-        ingredients.append(ingredient)
-	
-    get_recipes_query = "SELECT Title FROM recipes WHERE"
+    get_recipes_query = "SELECT * FROM recipes WHERE"
 	
     counter = 0
     for i in ingredients:
         if counter is len(ingredients) - 1:
             get_recipes_query += " Ingredients LIKE '%" + str(i) + "%'"
-            print(get_recipes_query)
             break
         get_recipes_query += " Ingredients LIKE '%" + str(i) + "%' OR"
         counter += 1
@@ -55,5 +79,21 @@ def get_recipes():
     cur.execute(get_recipes_query)
 	
     result = cur.fetchall()
+
+    print("found " + str(len(result)) + " recipes you can make with " + str(len(ingredients)) + " ingredients in the fridge")
 	
     return result
+
+def filterResults(user, recipes):
+    recipeList = list()
+    for r in recipes:
+        r=list(r)
+        rscore = 0
+        tags = str(r[4])
+        tags = tags.split(',')
+        for tag in tags:
+            rscore += getScore(user, tag)
+        r[0] = rscore
+        recipeList.append(r)
+    recipeList.sort(reverse=True, key=lambda x: x[0])
+    return recipeList
