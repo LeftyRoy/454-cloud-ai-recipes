@@ -135,12 +135,26 @@ class menuFrame(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.controller = controller
         self.recipes = []
+        self.recipeBttons = list()
     
 
     def updateRecipes(self):
         self.recipes = GCloudSql.get_recipes()
         luser = str(self.controller.loggedIn[0])
         self.recipes = GCloudSql.filterResults(luser ,self.recipes)
-
-        for k in self.recipes:
-            print(k[0])
+        canv = tk.Canvas(self)
+        canv.pack(anchor=tk.CENTER, side=tk.TOP)
+        tk.Label(canv,text="Our Suggested Recipes:", font=self.controller.titleFont).pack(anchor=tk.N, side=tk.TOP, pady=10)
+        for b in self.recipeBttons:
+            b.destroy()
+        
+        self.recipeBttons = list()
+        counter = 0
+        for recipe in self.recipes:
+            if(counter>=10):
+                break
+            bttn = tk.Button(canv, text=recipe[1], font=self.controller.bodyFont, command= lambda r=recipe[1]:self.controller.loadRecipe(r))
+            bttn.pack(anchor=tk.N, side=tk.TOP, padx=(2,5), pady=5)
+            self.recipeBttons.append(bttn)
+            counter+=1
+        print("Filtered best 10 suggestions")
