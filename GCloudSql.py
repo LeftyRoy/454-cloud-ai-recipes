@@ -58,7 +58,11 @@ def remove_name(nm):
     cur.execute(users_delete_query, str(nm))
     conn.commit()
     return True
-	
+
+def getRecipeByName(name):
+    cur.execute("SELECT * FROM recipes WHERE Title="+name)
+    recipe = cur.fetchone()
+    return recipe
 	
 def get_recipes():
     ingredients = []

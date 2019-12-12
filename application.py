@@ -16,7 +16,7 @@ class mainApp(tk.Tk):
         container.grid_columnconfigure(0, weight=1)
         self.frames = dict() # dict of empty frames
 
-        for F in {loginFrame, questionaireFrame, menuFrame}:
+        for F in {loginFrame, questionaireFrame, menuFrame, loadingFrame, recipeFrame}:
             page_name = F.__name__
             frame = F(parent=container, controller=self)
             self.frames[page_name] = frame
@@ -24,7 +24,7 @@ class mainApp(tk.Tk):
         
         self.show_frame("loginFrame")
 
-    def show_frame(self, name):
+    def show_frame(self, name, recipe=None):
         frame = self.frames[name]
         if name=="loginFrame":
             self.loggedIn = -1
@@ -32,15 +32,30 @@ class mainApp(tk.Tk):
             frame.updateGreeting()
         if name=="menuFrame":
             frame.updateRecipes()
+        if name=="recipeFrame":
+            frame.updateRecipe(recipe)
         frame.tkraise()
 
     def loginUser(self, user):
+        self.frames["loadingFrame"].tkraise()
         self.loggedIn = GCloudSql.login(user)
         print("Logged In " + user)
         if(self.loggedIn[1] == None):
             self.show_frame("questionaireFrame")
         else:
             self.show_frame("menuFrame")
+    
+    def loadRecipe(self, recipe):
+        r = str(recipe).split(",")
+        print(r[1])
+        r = list(GCloudSql.getRecipeByName(r[1]))
+        user = self.loggedIn[0]
+        tags = r[4].split(",")
+        for tag in tags:
+            GCloudSql.addScore(user, tag, 10)
+        self.show_frame("recipeFrame", recipe=r)
+
+
 
 
 class loginFrame(tk.Frame):
@@ -118,6 +133,7 @@ class questionaireFrame(tk.Frame):
         self.greetingLbl.configure(text="Hello " + self.controller.loggedIn[0] + "!")
     
     def continuePressed(self):
+        self.controller.show_frame("loadingFrame")
         luser = str(self.controller.loggedIn[0])
         GCloudSql.addScore(luser, "vegan", 100*self.isVegan.get())
         GCloudSql.addScore(luser, "vegetarian", 100*self.isVegetarian.get())
@@ -134,27 +150,64 @@ class menuFrame(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
+        self.i = 1 # iterations of updateRecipes
         self.recipes = []
         self.recipeBttons = list()
+        self.iteratebtn= tk.Button(self, text="More Suggestions", font=controller.titleFont)
+        self.Title = tk.Label(self,text="Our Suggested Recipes:", font=self.controller.titleFont)
     
 
-    def updateRecipes(self):
+    def updateRecipes(self, i=1):
+        self.i = i
+        print(i)
         self.recipes = GCloudSql.get_recipes()
         luser = str(self.controller.loggedIn[0])
         self.recipes = GCloudSql.filterResults(luser ,self.recipes)
         canv = tk.Canvas(self)
         canv.pack(anchor=tk.CENTER, side=tk.TOP)
-        tk.Label(canv,text="Our Suggested Recipes:", font=self.controller.titleFont).pack(anchor=tk.N, side=tk.TOP, pady=10)
+        self.Title = tk.Label(canv,text="Our Suggested Recipes:", font=self.controller.titleFont)
+        self.Title.pack(anchor=tk.N, side=tk.TOP, pady=10)
         for b in self.recipeBttons:
             b.destroy()
         
         self.recipeBttons = list()
-        counter = 0
+        counter = 1*i
         for recipe in self.recipes:
-            if(counter>=10):
+            if(counter>=11)*i:
                 break
-            bttn = tk.Button(canv, text=recipe[1], font=self.controller.bodyFont, command= lambda r=recipe[1]:self.controller.loadRecipe(r))
+            bttn = tk.Button(canv, text=recipe[1], font=self.controller.bodyFont, command= lambda r=recipe:self.controller.loadRecipe(r))
             bttn.pack(anchor=tk.N, side=tk.TOP, padx=(2,5), pady=5)
             self.recipeBttons.append(bttn)
             counter+=1
-        print("Filtered best 10 suggestions")
+        self.iteratebtn.pack(anchor=tk.N, side=tk.TOP, pady=10)
+    
+    def nextIter(self):
+        self.updateRecipes(self.i+1)
+
+class loadingFrame(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        canv = tk.Canvas(self)
+        canv.pack(anchor=tk.CENTER)
+        tk.Label(canv, text="Loading...", font=controller.titleFont).pack(anchor=tk.CENTER)
+
+class recipeFrame(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        canv = tk.Canvas(self)
+        canv.pack(anchor=tk.N, side=tk.TOP)
+        self.recipeName = tk.Label(canv, text="title", font=controller.titleFont)
+        self.recipeName.pack(side=tk.TOP, pady=4)
+        tk.Label(canv, text="Ingredients", font=controller.bodyFont, wraplength=700).pack(side=tk.TOP)
+        self.recipeIng = tk.Label(canv, text=" ingredients", font=controller.smallFont)
+        self.recipeIng.pack(side=tk.TOP, pady=5)
+        tk.Label(canv, text="Instructions", font=controller.bodyFont, wraplength=700).pack(side=tk.TOP, pady=5)
+        self.Instructions = tk.Label(canv, text=" inst ", font=controller.smallFont)
+        self.Instructions.pack(side=tk.TOP, pady=5)
+    
+    def updateRecipe(self, recipe):
+        self.recipeName.configure(text=recipe[1], wraplength=700)
+        self.recipeIng.configure(text=recipe[3], wraplength=700)
+        self.Instructions.configure(text=recipe[2], wraplength=700)
