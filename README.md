@@ -3,6 +3,8 @@
 Mitchell Norseth: mitchell2124@csu.fullerton.edu
 Vijay Duggirala: vduggirala@csu.fullerton.edu
 
+Link to Video Demo of our project: https://drive.google.com/drive/folders/1HfQ88jeVB413ICU_AELVhUjaipaP7v7J?usp=sharing
+
 GCloudSQL.py - Contains all of our SQL query functions and connects to the database the Google Cloud SQL Proxy is running.
 
 Reciple.py - Contains our class for a Recipe object
